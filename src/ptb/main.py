@@ -7,6 +7,7 @@ import cPickle as pickle
 import shutil
 import sys
 import time
+import glob
 
 import numpy as np
 import tensorflow as tf
@@ -29,6 +30,7 @@ DEFINE_boolean("reset_output_dir", False, "Delete output_dir if exists.")
 DEFINE_string("data_path", "", "")
 DEFINE_string("output_dir", "", "")
 DEFINE_string("search_for", None, "[rhn|base|enas]")
+DEFINE_string("mode", "train", "[train|eval]")
 
 DEFINE_string("child_fixed_arc", None, "")
 DEFINE_integer("batch_size", 25, "")
@@ -235,13 +237,30 @@ def train(mode="train"):
     if FLAGS.controller_training and FLAGS.controller_sync_replicas:
       hooks.append(controller_ops["optimizer"].make_session_run_hook(True))
 
+    ckpt_file = glob.glob(os.path.join(FLAGS.output_dir,"model.ckpt*.index"))
+    if len(ckpt_file):
+      ckpt_file = ckpt_file[0][0:-6]
+    else: 
+      ckpt_file = None
+    print(ckpt_file)
+
     print("-" * 80)
     print("Starting session")
     with tf.train.SingularMonitoredSession(
-      hooks=hooks, checkpoint_dir=FLAGS.output_dir) as sess:
+      hooks=hooks, checkpoint_dir=FLAGS.output_dir if ckpt_file is None else None, checkpoint_filename_with_path=ckpt_file) as sess:
         start_time = time.time()
 
         if mode == "eval":
+          print("Here are 100 architectures")
+          rws = []
+          for _ in xrange(100):
+            arc, rw = sess.run([
+              controller_ops["sample_arc"],
+              controller_ops["reward"],
+            ])
+            rws.append((arc,rw))
+            print("{} rw={:<.3f}".format(np.reshape(arc, [-1]), rw))
+          rws = sorted(rws, key=lambda x: -x[1])
           sess.run(child_ops["valid_reset"])
           ops["eval_func"](sess, "valid", verbose=True)
           sess.run(child_ops["test_reset"])
@@ -385,7 +404,7 @@ def main(_):
   sys.stdout = Logger(log_file)
 
   utils.print_user_flags()
-  train(mode="train")
+  train(mode=FLAGS.mode)
 
 
 if __name__ == "__main__":

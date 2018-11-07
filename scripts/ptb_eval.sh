@@ -4,10 +4,10 @@ export PYTHONPATH="$(pwd)"
 
 python src/ptb/main.py \
   --search_for="enas" \
-  --mode="train" \
+  --mode="eval" \
   --noreset_output_dir \
   --data_path="data/ptb/ptb.pkl" \
-  --output_dir="outputs" \
+  --output_dir="/home/liamli4465/results/enas_regular/trial100_copy" \
   --batch_size=20 \
   --child_bptt_steps=35 \
   --num_epochs=100 \
